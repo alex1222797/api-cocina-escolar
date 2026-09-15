@@ -457,6 +457,90 @@ app.get("/informe", async (req, res) => {
     }
 });
 
+
+/**registro de retiro mediante codigo de barras */
+app.post("/retiro/codigo" , async (req , res) => {
+    try {
+        const codigoBarra = String(
+            req.body.codigo_barra ?? ""
+        ).trim();
+        const utensilioId = Number(req.body.utensilio_Id);
+
+        if(
+            codigoBarra=== "" ||
+            !Number.isInteger(utensilioId) ||
+            utensilioId <=0
+        ){
+            return res.status(400).json({
+                status: "error",
+                mensaje:
+                "El codigo de barras y el utensilio son obligatorios"
+        
+            });
+        }
+        const [estudiantes] = await pool.query(
+            `
+            SELECT id, nombre, carnet, codigo_barra
+            FROM estudiantes
+            WHERE codigo_barra = ?
+               OR carnet = ?
+            LIMIT 1
+            `,
+            [codigoBarra , codigoBarra]
+        );
+        if (estudiantes.length === 0){
+            return res.status(404).json({
+                status : "error",
+                mensaje: "El carnet escaneado no esta registrado"
+
+            });
+        }
+        const [utensilios] = await pool.query(
+            "SELECT id FROM utensilios WHERE id =?",
+            [utensilioId]
+        );
+         if (utensilios.length === 0) {
+            return res.status(404).json({
+                status: "error",
+                mensaje: "El utensilio no existe"
+            });
+        }
+
+        const estudiante = estudiantes[0];
+
+        const [resultado] = await pool.query(
+            `
+            INSERT INTO movimientos (
+                estudiante_id,
+                utensilio_id,
+                fecha_retiro
+            )
+            VALUES (?, ?, NOW())
+            `,
+            [estudiante.id, utensilioId]
+        );
+
+        res.status(201).json({
+            status: "ok",
+            mensaje:
+                `Retiro registrado para ${estudiante.nombre}`,
+            movimiento_id: resultado.insertId,
+            estudiante: {
+                id: estudiante.id,
+                nombre: estudiante.nombre,
+                carnet: estudiante.carnet
+            }
+        });
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            status: "error",
+            mensaje: "No se pudo registrar el retiro"
+        });
+    }
+});
+
 /* =====================================================
    RUTA NO ENCONTRADA
 ===================================================== */
