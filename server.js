@@ -464,7 +464,7 @@ app.post("/retiro/codigo" , async (req , res) => {
         const codigoBarra = String(
             req.body.codigo_barra ?? ""
         ).trim();
-        const utensilioId = Number(req.body.utensilio_Id);
+        const utensilioId = Number(req.body.utensilio_id);
 
         if(
             codigoBarra=== "" ||
