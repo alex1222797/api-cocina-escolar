@@ -414,47 +414,41 @@ app.get("/movimientos/pendientes", async (req, res) => {
     }
 });
 
-/* =====================================================
-   INFORME DIARIO
-===================================================== */
-
-app.get("/informe", async (req, res) => {
+/*informe diario*/
+app.get("/informe" , async (req ,res) =>{
     try {
         const [informe] = await pool.query(`
-            SELECT
+            SELECT 
                 u.tipo,
-                COUNT(m.id) AS entregados,
-                SUM(
+                COUNT(
                     CASE
                         WHEN m.fecha_devolucion IS NOT NULL
-                            THEN 1
-                        ELSE 0
+                        THEN 1
                     END
-                ) AS devueltos,
-                SUM(
+                ) AS devueltos ,
+                COUNT(
                     CASE
-                        WHEN m.fecha_devolucion IS NULL
-                            THEN 1
-                        ELSE 0
+                        WHEN m.id IS NOT NULL
+                        AND m.fecha_devolucion IS NULL
+                        THEN 1
                     END
                 ) AS pendientes
-            FROM utensilios AS u
-            LEFT JOIN movimientos AS m
-                ON m.utensilio_id = u.id
-               AND DATE(m.fecha_retiro) = CURDATE()
-            GROUP BY u.id, u.tipo
-            ORDER BY u.tipo ASC
-        `);
-
+                 FROM utensilios AS u
+                 LEFT JOIN movimientos AS m
+                 ON m.utensilio_id = u.id
+                 AND DATE (m.fecha_retiro) = CURDATE()
+                 GROUP BY u.id, u.tipo
+                 ORDER BY u.tipo ASC`);
         res.json(informe);
-    } catch (error) {
-        console.error(error);
+    
+} catch (error){
+    console.error("Error generando informe: " , error);
 
-        res.status(500).json({
-            status: "error",
-            mensaje: "No se pudo generar el informe diario"
-        });
-    }
+    res.status(500).json({
+        status: "Error",
+        mensaje: "no se pudo generar el informe diario"
+    });
+}
 });
 
 
