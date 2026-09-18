@@ -537,26 +537,29 @@ app.post("/retiro/codigo" , async (req , res) => {
 
 /**consultaremos utensilios pendientes de un estudiante */
 
-app.post("/pendientes/identificador" , async(req, res) =>{
+// =====================================================
+// CONSULTAR UTENSILIOS PENDIENTES DE UN ESTUDIANTE
+// =====================================================
+app.get("/pendientes/:identificador", async (req, res) => {
     const identificador = req.params.identificador.trim();
 
-    if(!identificador){
+    if (!identificador) {
         return res.status(400).json({
-            status: "error" ,
-            mensaje: "El carnet o codigo de barras es obligatorio"      
+            status: "error",
+            mensaje: "El carnet o código de barras es obligatorio"
         });
     }
 
-    try{
-        const[filas] = await pool.query(
+    try {
+        const [filas] = await pool.query(
             `
             SELECT
                 e.id AS estudiante_id,
-                e.nombre AS estudiante ,
-                e.carnet ,
+                e.nombre AS estudiante,
+                e.carnet,
                 e.codigo_barra,
                 m.id AS movimiento_id,
-                u.tipo
+                u.tipo,
                 m.fecha_retiro
             FROM estudiantes AS e
             LEFT JOIN movimientos AS m
@@ -564,16 +567,17 @@ app.post("/pendientes/identificador" , async(req, res) =>{
                 AND m.fecha_devolucion IS NULL
             LEFT JOIN utensilios AS u
                 ON u.id = m.utensilio_id
-            WHERE codigo_barra = ?
-                ON carnet = ?
+            WHERE e.codigo_barra = ?
+               OR e.carnet = ?
             ORDER BY m.fecha_retiro DESC
-            `
-            [identificador , identificador]
+            `,
+            [identificador, identificador]
         );
-        if (filas.length == 0) {
+
+        if (filas.length === 0) {
             return res.status(404).json({
-                status: "error" ,
-                mensaje: "El carnet no esta registrado"
+                status: "error",
+                mensaje: "El carnet escaneado no está registrado"
             });
         }
 
@@ -584,7 +588,7 @@ app.post("/pendientes/identificador" , async(req, res) =>{
             codigo_barra: filas[0].codigo_barra
         };
 
-          const pendientes = filas
+        const pendientes = filas
             .filter((fila) => fila.movimiento_id !== null)
             .map((fila) => ({
                 movimiento_id: fila.movimiento_id,
@@ -597,8 +601,8 @@ app.post("/pendientes/identificador" , async(req, res) =>{
             estudiante,
             total: pendientes.length,
             pendientes
-        }); 
-    }catch (error) {
+        });
+    } catch (error) {
         console.error("Error consultando pendientes:", error);
 
         return res.status(500).json({
