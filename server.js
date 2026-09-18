@@ -535,6 +535,79 @@ app.post("/retiro/codigo" , async (req , res) => {
     }
 });
 
+/**consultaremos utensilios pendientes de un estudiante */
+
+app.post("/pendientes/identificador" , async(req, res) =>{
+    const identificador = req.params.identificador.trim();
+
+    if(!identificador){
+        return res.status(400).json({
+            status: "error" ,
+            mensaje: "El carnet o codigo de barras es obligatorio"      
+        });
+    }
+
+    try{
+        const[filas] = await pool.query(
+            `
+            SELECT
+                e.id AS estudiante_id,
+                e.nombre AS estudiante ,
+                e.carnet ,
+                e.codigo_barra,
+                m.id AS movimiento_id,
+                u.tipo
+                m.fecha_retiro
+            FROM estudiantes AS e
+            LEFT JOIN movimientos AS m
+                ON m.estudiante_id = e.id
+                AND m.fecha_devolucion IS NULL
+            LEFT JOIN utensilios AS u
+                ON u.id = m.utensilio_id
+            WHERE codigo_barra = ?
+                ON carnet = ?
+            ORDER BY m.fecha_retiro DESC
+            `
+            [identificador , identificador]
+        );
+        if (filas.length == 0) {
+            return res.status(404).json({
+                status: "error" ,
+                mensaje: "El carnet no esta registrado"
+            });
+        }
+
+        const estudiante = {
+            id: filas[0].estudiante_id,
+            nombre: filas[0].estudiante,
+            carnet: filas[0].carnet,
+            codigo_barra: filas[0].codigo_barra
+        };
+
+          const pendientes = filas
+            .filter((fila) => fila.movimiento_id !== null)
+            .map((fila) => ({
+                movimiento_id: fila.movimiento_id,
+                tipo: fila.tipo,
+                fecha_retiro: fila.fecha_retiro
+            }));
+
+        return res.status(200).json({
+            status: "ok",
+            estudiante,
+            total: pendientes.length,
+            pendientes
+        }); 
+    }catch (error) {
+        console.error("Error consultando pendientes:", error);
+
+        return res.status(500).json({
+            status: "error",
+            mensaje: "No se pudieron consultar los utensilios pendientes"
+        });
+    }
+});
+
 /* =====================================================
    RUTA NO ENCONTRADA
 ===================================================== */
