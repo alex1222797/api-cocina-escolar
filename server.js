@@ -414,6 +414,66 @@ app.get("/movimientos/pendientes", async (req, res) => {
     }
 });
 
+// =====================================================
+// REGISTRAR DEVOLUCIÓN MEDIANTE CARNET O CÓDIGO DE BARRAS
+// =====================================================
+app.put("/devolucionCarnet/:identificador", async (req, res) => {
+    const identificador = req.params.identificador.trim();
+
+    if (!identificador) {
+        return res.status(400).json({
+            status: "error",
+            mensaje: "El carnet o código de barras es obligatorio"
+        });
+    }
+
+    try {
+        const [resultado] = await pool.query(
+            `
+            UPDATE movimientos
+            SET fecha_devolucion = NOW()
+            WHERE id = (
+                SELECT movimiento_id
+                FROM (
+                    SELECT m.id AS movimiento_id
+                    FROM movimientos AS m
+                    INNER JOIN estudiantes AS e
+                        ON e.id = m.estudiante_id
+                    WHERE (
+                        e.codigo_barra = ?
+                        OR e.carnet = ?
+                    )
+                    AND m.fecha_devolucion IS NULL
+                    ORDER BY m.fecha_retiro DESC
+                    LIMIT 1
+                ) AS ultimo_pendiente
+            )
+            AND fecha_devolucion IS NULL
+            `,
+            [identificador, identificador]
+        );
+
+        if (resultado.affectedRows === 0) {
+            return res.status(404).json({
+                status: "error",
+                mensaje: "El estudiante no tiene utensilios pendientes"
+            });
+        }
+
+        return res.status(200).json({
+            status: "ok",
+            mensaje: "Devolución registrada correctamente"
+        });
+    } catch (error) {
+        console.error("Error registrando devolución:", error);
+
+        return res.status(500).json({
+            status: "error",
+            mensaje: "No se pudo registrar la devolución"
+        });
+    }
+});
+
 /*informe diario*/
 app.get("/informe" , async (req ,res) =>{
     try {
