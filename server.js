@@ -512,58 +512,63 @@ app.get("/informe" , async (req ,res) =>{
 });
 
 
-/**INFORME HISTORICO POR FECHA */
-app.get("/informe/:fecha" , async (req , res) => {
-    const fecha =req.params.fecha.trim();
+// =====================================================
+// GUÍA 6: INFORME HISTÓRICO POR FECHA
+// =====================================================
+app.get("/informe/:fecha", async (req, res) => {
+    const fecha = req.params.fecha.trim();
 
-    //definir la aplicacion de fecha 
+    // La aplicación enviará fechas con formato YYYY-MM-DD.
     const formatoFecha = /^\d{4}-\d{2}-\d{2}$/;
 
-    if (!formatoFecha.test(fecha)){
+    if (!formatoFecha.test(fecha)) {
         return res.status(400).json({
             status: "error",
-            mensaje: "La fecha debe tener el formato YYY-MM-DD"
+            mensaje: "La fecha debe tener el formato YYYY-MM-DD"
         });
     }
 
-    try{
+    try {
         const [informe] = await pool.query(
-            `SELECT 
-            u.tipo,
-            COUNT(m.id) AS entregados,
-            COUNT(
-                CASE 
-                    WHEN m.fecha_devolucion IS NOT NULL
-                    THEN 1
-                END
-            ) AS devueltos,
+            `
+            SELECT
+                u.tipo,
+                COUNT(m.id) AS entregados,
 
-            COUNT(
-                CASE
-                    WHEN a.id IS NOT NULL
-                    AND m.fecha_devolucion IS NULL
-                    THEN 1
-                END
-            ) AS pendientes
+                COUNT(
+                    CASE
+                        WHEN m.fecha_devolucion IS NOT NULL
+                        THEN 1
+                    END
+                ) AS devueltos,
 
-        FROM utensilios AS u
-        LEFT JOIN movimientos AS m
-            ON m.utencilio_id = u.id
-        AND DATE(m.fecha_retiro) = ?
+                COUNT(
+                    CASE
+                        WHEN m.id IS NOT NULL
+                         AND m.fecha_devolucion IS NULL
+                        THEN 1
+                    END
+                ) AS pendientes
 
-        GROUP BY u.id, u.tipo
-        ORDER BY u.tipo ASC
+            FROM utensilios AS u
+
+            LEFT JOIN movimientos AS m
+                ON m.utensilio_id = u.id
+               AND DATE(m.fecha_retiro) = ?
+
+            GROUP BY u.id, u.tipo
+            ORDER BY u.tipo ASC
             `,
             [fecha]
         );
 
         return res.status(200).json(informe);
-    }catch (error){
-        console.error ("Error generando informe historico:" , error);
+    } catch (error) {
+        console.error("Error generando informe histórico:", error);
 
         return res.status(500).json({
             status: "error",
-            mensaje: " No se pudo generar el informe historico"
+            mensaje: "No se pudo generar el informe histórico"
         });
     }
 });
