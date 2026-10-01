@@ -206,7 +206,7 @@ app.post("/estudiantes", async (req, res) => {
 app.get("/utensilios", async (req, res) => {
     try {
         const [utensilios] = await pool.query(`
-            SELECT id, tipo
+            SELECT id, tipo, cantidad
             FROM utensilios
             ORDER BY tipo ASC
         `);
@@ -218,6 +218,142 @@ app.get("/utensilios", async (req, res) => {
         res.status(500).json({
             status: "error",
             mensaje: "No se pudieron obtener los utensilios"
+        });
+    }
+});
+
+app.post("/utensilios", async (req, res) => {
+    try {
+        const tipo = String(req.body.tipo ?? "").trim();
+        const cantidad = Number(req.body.cantidad);
+
+        if (
+            tipo === "" ||
+            !Number.isInteger(cantidad) ||
+            cantidad < 0
+        ) {
+            return res.status(400).json({
+                status: "error",
+                mensaje: "El tipo y una cantidad válida son obligatorios"
+            });
+        }
+
+        const [resultado] = await pool.query(
+            `
+            INSERT INTO utensilios (tipo, cantidad)
+            VALUES (?, ?)
+            `,
+            [tipo, cantidad]
+        );
+
+        return res.status(201).json({
+            status: "ok",
+            mensaje: "Utensilio agregado correctamente",
+            id: resultado.insertId
+        });
+    } catch (error) {
+        console.error("Error agregando utensilio:", error);
+
+        return res.status(500).json({
+            status: "error",
+            mensaje: "No se pudo agregar el utensilio"
+        });
+    }
+});
+
+app.put("/utensilios/:id", async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        const tipo = String(req.body.tipo ?? "").trim();
+        const cantidad = Number(req.body.cantidad);
+
+        if (
+            !Number.isInteger(id) ||
+            id <= 0 ||
+            tipo === "" ||
+            !Number.isInteger(cantidad) ||
+            cantidad < 0
+        ) {
+            return res.status(400).json({
+                status: "error",
+                mensaje: "Los datos del utensilio no son válidos"
+            });
+        }
+
+        const [resultado] = await pool.query(
+            `
+            UPDATE utensilios
+            SET tipo = ?, cantidad = ?
+            WHERE id = ?
+            `,
+            [tipo, cantidad, id]
+        );
+
+        if (resultado.affectedRows === 0) {
+            return res.status(404).json({
+                status: "error",
+                mensaje: "El utensilio no existe"
+            });
+        }
+
+        return res.json({
+            status: "ok",
+            mensaje: "Utensilio actualizado correctamente"
+        });
+    } catch (error) {
+        console.error("Error actualizando utensilio:", error);
+
+        return res.status(500).json({
+            status: "error",
+            mensaje: "No se pudo actualizar el utensilio"
+        });
+    }
+});
+
+app.delete("/utensilios/:id", async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+
+        if (!Number.isInteger(id) || id <= 0) {
+            return res.status(400).json({
+                status: "error",
+                mensaje: "El ID del utensilio no es válido"
+            });
+        }
+
+        const [resultado] = await pool.query(
+            "DELETE FROM utensilios WHERE id = ?",
+            [id]
+        );
+
+        if (resultado.affectedRows === 0) {
+            return res.status(404).json({
+                status: "error",
+                mensaje: "El utensilio no existe"
+            });
+        }
+
+        return res.json({
+            status: "ok",
+            mensaje: "Utensilio eliminado correctamente"
+        });
+    } catch (error) {
+        console.error("Error eliminando utensilio:", error);
+
+        if (
+            error.code === "ER_ROW_IS_REFERENCED_2" ||
+            error.code === "ER_ROW_IS_REFERENCED"
+        ) {
+            return res.status(409).json({
+                status: "error",
+                mensaje:
+                    "No puedes eliminar este utensilio porque tiene movimientos registrados"
+            });
+        }
+
+        return res.status(500).json({
+            status: "error",
+            mensaje: "No se pudo eliminar el utensilio"
         });
     }
 });
