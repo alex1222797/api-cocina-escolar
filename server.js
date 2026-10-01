@@ -480,6 +480,7 @@ app.get("/informe" , async (req ,res) =>{
         const [informe] = await pool.query(`
             SELECT 
                 u.tipo,
+                COUNT(m.id) AS entregados,
                 COUNT(
                     CASE
                         WHEN m.fecha_devolucion IS NOT NULL
